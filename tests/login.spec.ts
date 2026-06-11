@@ -2,26 +2,39 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Módulo de Autenticación', () => {
 
-    test('Debería iniciar sesión exitosamente con credenciales válidas', async ({ page }) => {
-        // 1. Navegar a la página de login
+    // HOOK: Se ejecuta antes de CADA uno de los tests de abajo
+    test.beforeEach(async ({ page }) => {
+        // Centralizamos la navegación. Ya no se repite en cada test.
         await page.goto('https://the-internet.herokuapp.com/login');
+    });
 
-        // 2. Cargar el campo de Usuario (usando selector de ID)
+    test('Debería iniciar sesión exitosamente con credenciales válidas', async ({ page }) => {
         await page.locator('#username').fill('tomsmith');
-
-        // 3. Cargar el campo de Contraseña (usando selector de ID)
         await page.locator('#password').fill('SuperSecretPassword!');
-
-        // 4. Hacer clic en el botón de ingresar (usando selector de CSS por clase y tag)
         await page.locator('button[type="submit"]').click();
 
-        // 5. Verificación (Assertion): Validar que la URL cambió a la zona segura
+        // Validaciones del camino feliz
         await expect(page).toHaveURL('https://the-internet.herokuapp.com/secure');
+        
+        const successMessage = page.locator('#flash');
+        await expect(successMessage).toBeVisible();
+        await expect(successMessage).toContainText('You logged into a secure area!');
+    });
 
-        // 6. Verificación (Assertion): Validar que el cartel verde de éxito sea visible
-        const flashMessage = page.locator('#flash');
-        await expect(flashMessage).toBeVisible();
-        await expect(flashMessage).toContainText('You logged into a secure area!');
+    test('Debería mostrar un mensaje de error con credenciales inválidas', async ({ page }) => {
+        // Forzamos el error con un usuario que no existe
+        await page.locator('#username').fill('diego_qa_invalido');
+        await page.locator('#password').fill('Cualquiera123!');
+        await page.locator('button[type="submit"]').click();
+
+        // VALIDACIONES DEL ESCENARIO NEGATIVO:
+        // 1. La URL NO debe cambiar, se tiene que quedar en la página de login
+        await expect(page).toHaveURL('https://the-internet.herokuapp.com/login');
+
+        // 2. El cartel de error debe ser visible y contener el texto de falla
+        const errorMessage = page.locator('#flash');
+        await expect(errorMessage).toBeVisible();
+        await expect(errorMessage).toContainText('Your username is invalid!');
     });
 
 });
